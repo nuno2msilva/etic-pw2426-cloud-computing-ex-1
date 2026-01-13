@@ -62,6 +62,7 @@ make help        # Show all available commands
 make setup       # Set up Kubernetes cluster  
 make deploy      # Deploy the application (on subconsequent runs)
 make run         # Setup cluster and deploy (recommended for first time)
+make test        # Run comprehensive application tests
 make clean       # Clean up all resources
 ```
 
