@@ -18,10 +18,34 @@ docker build -t k8s-frontend:latest -f Dockerfile.frontend .
 docker build -t k8s-backend:latest -f Dockerfile.backend .
 cd ..
 
-# Deploy resources
+# Wait for nginx ingress controller to be ready
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=300s
+
+# Wait for admission webhook service to be available
+echo "HEY! This is not stuck and you are not forgotten! Please standby!"
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=60s
+
+# Ensure the webhook service is reachable
+until kubectl get service -n ingress-nginx ingress-nginx-controller-admission >/dev/null 2>&1; do
+  echo "Waiting for admission webhook service..."
+  sleep 5
+done
+
+# Additional wait for webhook to be fully functional
+sleep 15
+
+# Deploy resources in order
 kubectl apply -f database/ 
 kubectl apply -f backend/ 
 kubectl apply -f frontend/ 
+
+# Apply ingress after everything else is ready
 kubectl apply -f ingress/ 
 
 # Wait for pods to be ready
@@ -58,7 +82,9 @@ else:
 kubectl port-forward --namespace=ingress-nginx service/ingress-nginx-controller 8000:80 &
 PORT_FORWARD_PID=$!
 
-echo "Access your application at: http://localhost:8000"
-
 # Open browser automatically
-xdg-open http://localhost:8000
+if [ -n "$BROWSER" ]; then
+    "$BROWSER" http://localhost:8000
+else
+    xdg-open http://localhost:8000
+fi
